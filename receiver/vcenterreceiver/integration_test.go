@@ -47,7 +47,7 @@ func TestEndtoEnd_ESX(t *testing.T) {
 		}
 		s := session.NewManager(c)
 
-		scraper := newVmwareVcenterScraper(zap.NewNop(), cfg, componenttest.NewNopReceiverCreateSettings())
+		scraper := newVmwareVcenterMetricScraper(zap.NewNop(), cfg, componenttest.NewNopReceiverCreateSettings())
 		scraper.client.moClient = &govmomi.Client{
 			Client:         c,
 			SessionManager: s,

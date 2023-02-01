@@ -39,6 +39,7 @@ func NewFactory() component.ReceiverFactory {
 		typeStr,
 		createDefaultConfig,
 		component.WithMetricsReceiver(createMetricsReceiver, stability),
+		component.WithLogsReceiver(createLogsReceiver, stability),
 	)
 }
 
@@ -65,7 +66,7 @@ func createMetricsReceiver(
 	if !ok {
 		return nil, errConfigNotVcenter
 	}
-	vr := newVmwareVcenterScraper(params.Logger, cfg, params)
+	vr := newVmwareVcenterMetricScraper(params.Logger, cfg, params)
 
 	scraper, err := scraperhelper.NewScraper(
 		typeStr,
@@ -83,4 +84,20 @@ func createMetricsReceiver(
 		consumer,
 		scraperhelper.AddScraper(scraper),
 	)
+}
+
+func createLogsReceiver(
+	_ context.Context,
+	params component.ReceiverCreateSettings,
+	rConf component.Config,
+	consumer consumer.Logs,
+) (component.LogsReceiver, error) {
+
+	cfg, ok := rConf.(*Config)
+	if !ok {
+		return nil, errConfigNotVcenter
+	}
+	vr := newVmwareVcenterLogsScraper(params.Logger, cfg, params, consumer)
+
+	return vr, nil
 }

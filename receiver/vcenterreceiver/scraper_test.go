@@ -61,7 +61,7 @@ func TestScrape_TLS(t *testing.T) {
 }
 
 func testScrape(ctx context.Context, t *testing.T, cfg *Config) {
-	scraper := newVmwareVcenterScraper(zap.NewNop(), cfg, componenttest.NewNopReceiverCreateSettings())
+	scraper := newVmwareVcenterMetricScraper(zap.NewNop(), cfg, componenttest.NewNopReceiverCreateSettings())
 
 	metrics, err := scraper.scrape(ctx)
 	require.NoError(t, err)
@@ -114,7 +114,7 @@ func TestStartFailures_Metrics(t *testing.T) {
 
 	ctx := context.Background()
 	for _, tc := range cases {
-		scraper := newVmwareVcenterScraper(zap.NewNop(), &tc.cfg, componenttest.NewNopReceiverCreateSettings())
+		scraper := newVmwareVcenterMetricScraper(zap.NewNop(), &tc.cfg, componenttest.NewNopReceiverCreateSettings())
 		err := scraper.Start(ctx, nil)
 		if tc.err != nil {
 			require.ErrorContains(t, err, tc.err.Error())

@@ -17,6 +17,8 @@ package vcenterreceiver // import "github.com/open-telemetry/opentelemetry-colle
 import (
 	"context"
 	"fmt"
+	"go.opentelemetry.io/collector/consumer"
+	"go.opentelemetry.io/collector/pdata/plog"
 	"time"
 
 	"github.com/vmware/govmomi/object"
@@ -30,6 +32,17 @@ import (
 	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/vcenterreceiver/internal/metadata"
 )
 
+var _ component.LogsReceiver = (*vcenterLogScraper)(nil)
+
+type vcenterLogScraper struct {
+	client *vcenterClient
+	config *Config
+	mb     *metadata.MetricsBuilder
+	//logsConsumer consumer.Logs
+	logger   *zap.Logger
+	consumer consumer.Logs
+}
+
 var _ component.MetricsReceiver = (*vcenterMetricScraper)(nil)
 
 type vcenterMetricScraper struct {
@@ -39,7 +52,52 @@ type vcenterMetricScraper struct {
 	logger *zap.Logger
 }
 
-func newVmwareVcenterScraper(
+func (v *vcenterLogScraper) Start(ctx context.Context, _ component.Host) error {
+	connectErr := v.client.EnsureConnection(ctx)
+	// don't fail to start if we cannot establish connection, just log an error
+	if connectErr != nil {
+		v.logger.Error(fmt.Sprintf("unable to establish a connection to the vSphere SDK %s", connectErr.Error()))
+	}
+
+	ld := plog.NewLogs()
+	rl := ld.ResourceLogs().AppendEmpty()
+	sl := rl.ScopeLogs().AppendEmpty()
+	lr := sl.LogRecords().AppendEmpty()
+
+	resourceAttrs := rl.Resource().Attributes()
+	resourceAttrs.PutStr("test", "nice test!")
+
+	lr.SetTimestamp(pcommon.NewTimestampFromTime(time.Now()))
+
+	lr.Body().SetStr("a real test")
+
+	attrs := lr.Attributes()
+	attrs.PutStr("event", "this happened!")
+
+	return v.consumer.ConsumeLogs(ctx, ld)
+}
+
+func (v *vcenterLogScraper) Shutdown(ctx context.Context) error {
+	return v.client.Disconnect(ctx)
+}
+
+func newVmwareVcenterLogsScraper(
+	logger *zap.Logger,
+	config *Config,
+	settings component.ReceiverCreateSettings,
+	consumer consumer.Logs,
+) *vcenterLogScraper {
+	client := newVcenterClient(config)
+	return &vcenterLogScraper{
+		client:   client,
+		config:   config,
+		logger:   logger,
+		mb:       metadata.NewMetricsBuilder(config.Metrics, settings),
+		consumer: consumer,
+	}
+}
+
+func newVmwareVcenterMetricScraper(
 	logger *zap.Logger,
 	config *Config,
 	settings component.ReceiverCreateSettings,
